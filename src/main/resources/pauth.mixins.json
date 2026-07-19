@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "ru.zaralx.pauth.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "pauth.refmap.json",
+  "mixins": [
+    "ServerLoginPacketListenerImplMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

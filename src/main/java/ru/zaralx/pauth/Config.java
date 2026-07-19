@@ -1,51 +1,49 @@
 package ru.zaralx.pauth;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
 import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
-import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-// An example config class. This is not required, but it's a good idea to have one to keep your config organized.
-// Demonstrates how to use Forge's config APIs
-@Mod.EventBusSubscriber(modid = Pauth.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
+    public enum PremiumMode {
+        /** Names owned by Mojang accounts can only be used by their licensed owners. */
+        STRICT,
+        /** Unknown names never trigger a Mojang lookup; anyone may register any free name. */
+        LENIENT
+    }
+
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
-    private static final ForgeConfigSpec.BooleanValue LOG_DIRT_BLOCK = BUILDER.comment("Whether to log the dirt block on common setup").define("logDirtBlock", true);
+    public static final ForgeConfigSpec.EnumValue<PremiumMode> PREMIUM_MODE = BUILDER
+            .comment("STRICT: if a username belongs to a Mojang account, only the licensed owner can join with it (others are kicked).",
+                    "LENIENT: unknown names are never checked against Mojang; first join can register with any free name.")
+            .defineEnum("premiumMode", PremiumMode.STRICT);
 
-    private static final ForgeConfigSpec.IntValue MAGIC_NUMBER = BUILDER.comment("A magic number").defineInRange("magicNumber", 42, 0, Integer.MAX_VALUE);
+    public static final ForgeConfigSpec.BooleanValue OFFLINE_UUID_FOR_PREMIUM = BUILDER
+            .comment("If true, premium players get the same offline-style UUID as cracked players (stable player data,",
+                    "but breaks skins). If false, premium players keep their real Mojang UUID.")
+            .define("offlineUuidForPremium", false);
 
-    public static final ForgeConfigSpec.ConfigValue<String> MAGIC_NUMBER_INTRODUCTION = BUILDER.comment("What you want the introduction message to be for the magic number").define("magicNumberIntroduction", "The magic number is... ");
+    public static final ForgeConfigSpec.IntValue LOGIN_TIMEOUT_SECONDS = BUILDER
+            .comment("Seconds an unauthenticated player may stay on the server before being kicked.")
+            .defineInRange("loginTimeoutSeconds", 60, 10, 600);
 
-    // a list of strings that are treated as resource locations for items
-    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER.comment("A list of items to log on common setup.").defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), Config::validateItemName);
+    public static final ForgeConfigSpec.IntValue SESSION_MINUTES = BUILDER
+            .comment("If a registered player rejoins from the same IP within this many minutes, /login is skipped. 0 disables sessions.")
+            .defineInRange("sessionMinutes", 30, 0, 10080);
 
-    static final ForgeConfigSpec SPEC = BUILDER.build();
+    public static final ForgeConfigSpec.IntValue MAX_LOGIN_ATTEMPTS = BUILDER
+            .comment("Wrong password attempts before the player is kicked.")
+            .defineInRange("maxLoginAttempts", 3, 1, 10);
 
-    public static boolean logDirtBlock;
-    public static int magicNumber;
-    public static String magicNumberIntroduction;
-    public static Set<Item> items;
+    public static final ForgeConfigSpec.IntValue MOJANG_API_TIMEOUT_MS = BUILDER
+            .comment("Timeout for Mojang API requests. On timeout/error the player is treated as cracked (falls back to password auth).")
+            .defineInRange("mojangApiTimeoutMs", 5000, 500, 30000);
 
-    private static boolean validateItemName(final Object obj) {
-        return obj instanceof final String itemName && ForgeRegistries.ITEMS.containsKey(new ResourceLocation(itemName));
-    }
+    public static final ForgeConfigSpec.IntValue MIN_PASSWORD_LENGTH = BUILDER
+            .defineInRange("minPasswordLength", 4, 1, 32);
 
-    @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
-        logDirtBlock = LOG_DIRT_BLOCK.get();
-        magicNumber = MAGIC_NUMBER.get();
-        magicNumberIntroduction = MAGIC_NUMBER_INTRODUCTION.get();
+    public static final ForgeConfigSpec.BooleanValue APPLY_BLINDNESS = BUILDER
+            .comment("Apply blindness to players while they are not logged in.")
+            .define("applyBlindness", true);
 
-        // convert the list of strings into a set of items
-        items = ITEM_STRINGS.get().stream().map(itemName -> ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemName))).collect(Collectors.toSet());
-    }
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
 }
