@@ -35,8 +35,15 @@ public class Config {
             .defineInRange("maxLoginAttempts", 3, 1, 10);
 
     public static final ForgeConfigSpec.IntValue MOJANG_API_TIMEOUT_MS = BUILDER
-            .comment("Timeout for Mojang API requests. On timeout/error the player is treated as cracked (falls back to password auth).")
+            .comment("Timeout for Mojang API requests.")
             .defineInRange("mojangApiTimeoutMs", 5000, 500, 30000);
+
+    public static final ForgeConfigSpec.BooleanValue KICK_ON_API_ERROR = BUILDER
+            .comment("STRICT mode only: when the Mojang API is unreachable and a name is unknown, the mod cannot tell",
+                    "whether it belongs to a licensed account. If true (secure), such a login is refused with 'try again later'",
+                    "so nobody can squat a premium name during an outage. If false, the player falls through to offline",
+                    "registration (convenient, but a premium name could be hijacked while the API is down).")
+            .define("kickOnApiError", true);
 
     public static final ForgeConfigSpec.IntValue MIN_PASSWORD_LENGTH = BUILDER
             .defineInRange("minPasswordLength", 4, 1, 32);

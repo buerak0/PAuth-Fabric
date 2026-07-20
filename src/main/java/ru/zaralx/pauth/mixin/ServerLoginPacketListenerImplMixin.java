@@ -46,21 +46,26 @@ public abstract class ServerLoginPacketListenerImplMixin {
 
     @Shadow public abstract void disconnect(Component reason);
 
-    @Unique private volatile Boolean pauth$premiumAttempt;
+    @Unique private volatile PremiumResolver.Decision pauth$decision;
     @Unique private volatile boolean pauth$resolving;
 
     @Inject(method = "handleHello", at = @At("HEAD"), cancellable = true)
     private void pauth$resolvePremium(ServerboundHelloPacket packet, CallbackInfo ci) {
         if (this.server.usesAuthentication()) return; // online-mode server: vanilla handles everything
-        if (this.pauth$premiumAttempt != null) return; // decision made, let vanilla run (see redirect)
+        if (this.pauth$decision != null) return; // decision made, let vanilla run (see redirect)
 
         ci.cancel();
         if (this.pauth$resolving) return; // duplicate hello while resolving
         this.pauth$resolving = true;
 
-        PremiumResolver.shouldAttemptPremium(packet.name()).thenAccept(premium -> {
-            this.pauth$premiumAttempt = premium;
+        PremiumResolver.resolve(packet.name()).thenAccept(decision -> {
             if (!this.connection.isConnected()) return;
+            if (decision == PremiumResolver.Decision.DISCONNECT) {
+                this.disconnect(Component.literal(
+                        "Не удалось проверить лицензию (сервис Mojang недоступен). Попробуйте зайти чуть позже."));
+                return;
+            }
+            this.pauth$decision = decision;
             try {
                 ((ServerLoginPacketListenerImpl) (Object) this).handleHello(packet);
             } catch (Exception e) {
@@ -74,13 +79,13 @@ public abstract class ServerLoginPacketListenerImplMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;usesAuthentication()Z"))
     private boolean pauth$forceAuthForPremium(MinecraftServer server) {
         if (server.usesAuthentication()) return true;
-        return this.pauth$premiumAttempt != null && this.pauth$premiumAttempt;
+        return this.pauth$decision == PremiumResolver.Decision.PREMIUM;
     }
 
     @Inject(method = "handleAcceptedLogin", at = @At("HEAD"))
     private void pauth$onAcceptedLogin(CallbackInfo ci) {
         if (this.server.usesAuthentication()) return;
-        boolean attempted = this.pauth$premiumAttempt != null && this.pauth$premiumAttempt;
+        boolean attempted = this.pauth$decision == PremiumResolver.Decision.PREMIUM;
         if (!attempted || this.gameProfile == null || !this.gameProfile.isComplete()) return;
 
         // Session server confirmed this player owns the account
