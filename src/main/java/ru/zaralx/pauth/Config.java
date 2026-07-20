@@ -51,6 +51,11 @@ public class Config {
     public static final ForgeConfigSpec.BooleanValue APPLY_BLINDNESS = BUILDER
             .comment("Apply blindness to players while they are not logged in.")
             .define("applyBlindness", true);
+    public static final ForgeConfigSpec.ConfigValue<String> LANGUAGE = BUILDER
+            .comment("Language for player-facing messages: \"ru\" or \"en\".")
+            .defineInList("language", "ru", java.util.List.of("ru", "en"));
+
+
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 }

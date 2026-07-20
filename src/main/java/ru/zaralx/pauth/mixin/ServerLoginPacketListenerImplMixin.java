@@ -1,5 +1,6 @@
 package ru.zaralx.pauth.mixin;
 
+import ru.zaralx.pauth.i18n.Messages;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.Connection;
@@ -62,7 +63,7 @@ public abstract class ServerLoginPacketListenerImplMixin {
             if (!this.connection.isConnected()) return;
             if (decision == PremiumResolver.Decision.DISCONNECT) {
                 this.disconnect(Component.literal(
-                        "Не удалось проверить лицензию (сервис Mojang недоступен). Попробуйте зайти чуть позже."));
+                        Messages.t(Messages.Key.LICENSE_CHECK_FAILED)));
                 return;
             }
             this.pauth$decision = decision;
@@ -70,7 +71,7 @@ public abstract class ServerLoginPacketListenerImplMixin {
                 ((ServerLoginPacketListenerImpl) (Object) this).handleHello(packet);
             } catch (Exception e) {
                 Pauth.LOGGER.error("PAuth: login failed for {}", packet.name(), e);
-                this.disconnect(Component.literal("PAuth: internal login error"));
+                this.disconnect(Component.literal(Messages.t(Messages.Key.INTERNAL_LOGIN_ERROR)));
             }
         });
     }

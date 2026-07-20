@@ -1,5 +1,6 @@
 package ru.zaralx.pauth.event;
 
+import ru.zaralx.pauth.i18n.Messages;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -47,13 +48,13 @@ public class AuthEvents {
         if (entry != null && entry.premium) {
             // Could only get here through the encryption + session server check
             AuthManager.recordLogin(player);
-            player.sendSystemMessage(Component.literal("§aЛицензия подтверждена, приятной игры!"));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PREMIUM_OK)));
             return;
         }
         boolean registered = entry != null && entry.passwordHash != null;
         if (registered && AuthManager.sessionValid(entry, player.getIpAddress())) {
             AuthManager.recordLogin(player);
-            player.sendSystemMessage(Component.literal("§aВход выполнен автоматически (сессия восстановлена)."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.SESSION_RESTORED)));
             return;
         }
         AuthManager.lock(player, registered);
@@ -78,7 +79,7 @@ public class AuthEvents {
     public static void onChat(ServerChatEvent event) {
         if (AuthManager.isLocked(event.getPlayer())) {
             event.setCanceled(true);
-            event.getPlayer().sendSystemMessage(Component.literal("§cСначала войдите в аккаунт."));
+            event.getPlayer().sendSystemMessage(Component.literal(Messages.t(Messages.Key.MUST_LOGIN_FIRST)));
         }
     }
 
@@ -91,7 +92,7 @@ public class AuthEvents {
         String root = nodes.isEmpty() ? "" : nodes.get(0).getNode().getName();
         if (!ALLOWED_COMMANDS.contains(root)) {
             event.setCanceled(true);
-            player.sendSystemMessage(Component.literal("§cДоступны только /login и /register."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ONLY_AUTH_COMMANDS)));
         }
     }
 

@@ -1,5 +1,6 @@
 package ru.zaralx.pauth.command;
 
+import ru.zaralx.pauth.i18n.Messages;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -63,21 +64,21 @@ public final class AuthCommands {
         String confirm = StringArgumentType.getString(ctx, "confirm");
 
         if (!AuthManager.isLocked(player)) {
-            player.sendSystemMessage(Component.literal("§aВы уже вошли в аккаунт."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_LOGGED_IN)));
             return 0;
         }
         PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry != null && entry.passwordHash != null) {
-            player.sendSystemMessage(Component.literal("§cВы уже зарегистрированы, используйте /login <пароль>."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_REGISTERED)));
             return 0;
         }
         if (!password.equals(confirm)) {
-            player.sendSystemMessage(Component.literal("§cПароли не совпадают."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PASSWORDS_MISMATCH)));
             return 0;
         }
         if (password.length() < Config.MIN_PASSWORD_LENGTH.get()) {
             player.sendSystemMessage(Component.literal(
-                    "§cПароль слишком короткий (минимум " + Config.MIN_PASSWORD_LENGTH.get() + " символа)."));
+                    Messages.t(Messages.Key.PASSWORD_TOO_SHORT, Config.MIN_PASSWORD_LENGTH.get())));
             return 0;
         }
 
@@ -90,7 +91,7 @@ public final class AuthCommands {
                 created.passwordHash = hash;
                 created.registeredAtMs = System.currentTimeMillis();
                 AuthManager.authenticate(player);
-                player.sendSystemMessage(Component.literal("§aРегистрация успешна, приятной игры!"));
+                player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.REGISTER_OK)));
             });
         });
         return 1;
@@ -101,12 +102,12 @@ public final class AuthCommands {
         String password = StringArgumentType.getString(ctx, "password");
 
         if (!AuthManager.isLocked(player)) {
-            player.sendSystemMessage(Component.literal("§aВы уже вошли в аккаунт."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_LOGGED_IN)));
             return 0;
         }
         PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry == null || entry.passwordHash == null) {
-            player.sendSystemMessage(Component.literal("§cВы не зарегистрированы: /register <пароль> <пароль>."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.NOT_REGISTERED)));
             return 0;
         }
 
@@ -120,15 +121,15 @@ public final class AuthCommands {
                 if (locked == null) return;
                 if (ok) {
                     AuthManager.authenticate(player);
-                    player.sendSystemMessage(Component.literal("§aВход выполнен, приятной игры!"));
+                    player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.LOGIN_OK)));
                 } else {
                     locked.attempts++;
                     int left = Config.MAX_LOGIN_ATTEMPTS.get() - locked.attempts;
                     if (left <= 0) {
-                        player.connection.disconnect(Component.literal("Слишком много неверных попыток входа"));
+                        player.connection.disconnect(Component.literal(Messages.t(Messages.Key.TOO_MANY_ATTEMPTS)));
                     } else {
                         player.sendSystemMessage(Component.literal(
-                                "§cНеверный пароль! Осталось попыток: " + left));
+                                Messages.t(Messages.Key.WRONG_PASSWORD, left)));
                     }
                 }
             });
@@ -142,16 +143,16 @@ public final class AuthCommands {
         String newPassword = StringArgumentType.getString(ctx, "new");
 
         if (AuthManager.isLocked(player)) {
-            player.sendSystemMessage(Component.literal("§cСначала войдите в аккаунт."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.MUST_LOGIN_FIRST)));
             return 0;
         }
         PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry == null || entry.passwordHash == null) {
-            player.sendSystemMessage(Component.literal("§cУ вас нет пароля (premium-аккаунт)."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.NO_PASSWORD_PREMIUM)));
             return 0;
         }
         if (newPassword.length() < Config.MIN_PASSWORD_LENGTH.get()) {
-            player.sendSystemMessage(Component.literal("§cНовый пароль слишком короткий."));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.NEW_PASSWORD_TOO_SHORT)));
             return 0;
         }
 
@@ -163,7 +164,7 @@ public final class AuthCommands {
             server.execute(() -> {
                 if (player.hasDisconnected()) return;
                 if (!ok) {
-                    player.sendSystemMessage(Component.literal("§cНеверный старый пароль."));
+                    player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.WRONG_OLD_PASSWORD)));
                     return;
                 }
                 PlayerEntry current = PlayerDatabase.get(player.getGameProfile().getName());
@@ -171,7 +172,7 @@ public final class AuthCommands {
                     current.passwordHash = newHash;
                     PlayerDatabase.save();
                 }
-                player.sendSystemMessage(Component.literal("§aПароль изменён."));
+                player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PASSWORD_CHANGED)));
             });
         });
         return 1;
@@ -181,15 +182,15 @@ public final class AuthCommands {
         String name = StringArgumentType.getString(ctx, "name");
         PlayerEntry entry = PlayerDatabase.get(name);
         if (entry == null) {
-            ctx.getSource().sendFailure(Component.literal("Игрок " + name + " не найден в базе."));
+            ctx.getSource().sendFailure(Component.literal(Messages.t(Messages.Key.PLAYER_NOT_FOUND, name)));
             return 0;
         }
         PlayerDatabase.remove(name);
         ServerPlayer online = ctx.getSource().getServer().getPlayerList().getPlayerByName(name);
         if (online != null) {
-            online.connection.disconnect(Component.literal("Ваш аккаунт был сброшен администратором"));
+            online.connection.disconnect(Component.literal(Messages.t(Messages.Key.ACCOUNT_RESET_BY_ADMIN)));
         }
-        ctx.getSource().sendSuccess(() -> Component.literal("Аккаунт " + name + " удалён из базы."), true);
+        ctx.getSource().sendSuccess(() -> Component.literal(Messages.t(Messages.Key.ACCOUNT_DELETED, name)), true);
         return 1;
     }
 
@@ -197,13 +198,13 @@ public final class AuthCommands {
         String name = StringArgumentType.getString(ctx, "name");
         PlayerEntry entry = PlayerDatabase.get(name);
         if (entry == null) {
-            ctx.getSource().sendFailure(Component.literal("Игрок " + name + " не найден в базе."));
+            ctx.getSource().sendFailure(Component.literal(Messages.t(Messages.Key.PLAYER_NOT_FOUND, name)));
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.literal(
-                "Игрок " + entry.name
+                "Player " + entry.name
                         + " | premium: " + entry.premium
-                        + " | зарегистрирован: " + (entry.passwordHash != null)
+                        + " | registered: " + (entry.passwordHash != null)
                         + " | mojangUuid: " + entry.mojangUuid
                         + " | lastIp: " + entry.lastIp), false);
         return 1;

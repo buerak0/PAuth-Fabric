@@ -1,5 +1,6 @@
 package ru.zaralx.pauth.auth;
 
+import ru.zaralx.pauth.i18n.Messages;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -93,7 +94,7 @@ public final class AuthManager {
 
         long now = System.currentTimeMillis();
         if (now - locked.lockedAtMs > Config.LOGIN_TIMEOUT_SECONDS.get() * 1000L) {
-            player.connection.disconnect(Component.literal("Время на вход истекло"));
+            player.connection.disconnect(Component.literal(Messages.t(Messages.Key.LOGIN_TIMEOUT)));
             return;
         }
         if (now - locked.lastReminderMs > 10_000) {
@@ -109,9 +110,9 @@ public final class AuthManager {
 
     private static void sendPrompt(ServerPlayer player, boolean registered) {
         if (registered) {
-            player.sendSystemMessage(Component.literal("§eВойдите в аккаунт: §6/login <пароль>"));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PROMPT_LOGIN)));
         } else {
-            player.sendSystemMessage(Component.literal("§eЗарегистрируйтесь: §6/register <пароль> <пароль>"));
+            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PROMPT_REGISTER)));
         }
     }
 }
