@@ -37,6 +37,7 @@ The result: licensed players never touch a password, cracked players are fully p
 - 🌐 **Mojang API caching + safe fallbacks** — cached lookups, and configurable behaviour when the API is unreachable (kick with "try later" instead of letting anyone squat a premium name).
 - 🔁 **Optional IP sessions** — skip `/login` on quick reconnects from the same IP (off by default; see security notes).
 - 🆔 **UUID mode** — keep real Mojang UUIDs for premium players, or force offline-style UUIDs for stable player data across auth modes.
+- 🌍 **Bilingual** — all player-facing messages available in **English and Russian**, selectable with the `language` config option.
 - 🧩 **Server-side only** — clients need nothing; the mod advertises itself as not required to connect.
 
 ---
@@ -59,6 +60,7 @@ The result: licensed players never touch a password, cracked players are fully p
 
 | Option | Default | Description |
 |---|---|---|
+| `language` | `ru` | Language for player-facing messages: `ru` or `en` |
 | `premiumMode` | `STRICT` | `STRICT` protects licensed names for their owners; `LENIENT` never checks unknown names against Mojang |
 | `kickOnApiError` | `true` | When Mojang is unreachable, refuse unknown names instead of letting a premium name be squatted |
 | `offlineUuidForPremium` | `false` | Give premium players offline-style UUIDs (stable data, breaks skins) instead of their real Mojang UUID |
@@ -97,7 +99,7 @@ Each build is version-specific — download the file that matches your server.
 
 ## Notes
 
-- Player-facing messages are currently in **Russian**.
+- Player-facing messages are available in **English and Russian** (`language` option).
 - Requires the server to run with `online-mode=false`.
 
 *Not affiliated with Mojang or Microsoft.*
