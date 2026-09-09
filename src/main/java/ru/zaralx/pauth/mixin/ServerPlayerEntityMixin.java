@@ -5,6 +5,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -24,8 +25,24 @@ public abstract class ServerPlayerEntityMixin {
         }
     }
 
+    // hurt(DamageSource, float) was split into a server-side hurtServer in 1.21.4. A mixin
+    // target is a string, so a wrong name here is not a compile error - it takes the server
+    // down at startup, since the mixin config requires every injector to apply.
+    //? if <1.21.4 {
+    /*@Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
+    private void pauth$preventDamage(DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        pauth$refuseDamage(damageSource, cir);
+    }
+    *///?} else {
     @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void pauth$preventDamage(net.minecraft.server.level.ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        pauth$refuseDamage(damageSource, cir);
+    }
+    //?}
+
+    /** No damage to a player in limbo, and none dealt by one. */
+    @Unique
+    private void pauth$refuseDamage(DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
         if (AuthManager.isLocked(player)) {
             cir.setReturnValue(false);
