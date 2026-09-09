@@ -72,6 +72,7 @@ The result: licensed players never touch a password, cracked players are fully p
 | `mojangApiEndpoints` | Mojang's two official lookup APIs | Name-lookup URLs, tried in order until one answers; `%s` is the username. Useful when one host is unreachable from the server — but only add mirrors you trust, since an endpoint that lies about a name lets that name be squatted |
 | `minPasswordLength` | `4` | Minimum password length |
 | `applyBlindness` | `true` | Blind players while they are not logged in |
+| `quietUnknownPacketErrors` | `true` | Drop the vanilla `Sending unknown packet` stack traces logged when a server-list ping drops mid-handshake. Only that exact encoder failure is hidden; every other one is logged as before |
 
 Accounts are stored as JSON in `config/pauth/users.json`.
 

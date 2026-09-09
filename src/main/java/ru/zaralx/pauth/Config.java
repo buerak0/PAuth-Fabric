@@ -58,6 +58,8 @@ public class Config {
     public static final ConfigValue<Boolean> KICK_ON_API_ERROR = new ConfigValue<>(true);
     public static final ConfigValue<Integer> MIN_PASSWORD_LENGTH = new ConfigValue<>(4);
     public static final ConfigValue<Boolean> APPLY_BLINDNESS = new ConfigValue<>(true);
+    /** Drops the vanilla "Sending unknown packet" stack traces from dropped server-list pings. */
+    public static final ConfigValue<Boolean> QUIET_UNKNOWN_PACKET_ERRORS = new ConfigValue<>(true);
     public static final ConfigValue<String> LANGUAGE = new ConfigValue<>("ru");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -78,6 +80,7 @@ public class Config {
         boolean kickOnApiError = true;
         int minPasswordLength = 4;
         boolean applyBlindness = true;
+        boolean quietUnknownPacketErrors = true;
         String language = "ru";
     }
 
@@ -101,6 +104,7 @@ public class Config {
                 KICK_ON_API_ERROR.set(data.kickOnApiError);
                 MIN_PASSWORD_LENGTH.set(data.minPasswordLength);
                 APPLY_BLINDNESS.set(data.applyBlindness);
+                QUIET_UNKNOWN_PACKET_ERRORS.set(data.quietUnknownPacketErrors);
                 if (data.language != null) LANGUAGE.set(data.language);
             }
         } catch (Exception e) {
@@ -143,6 +147,7 @@ public class Config {
         data.kickOnApiError = KICK_ON_API_ERROR.get();
         data.minPasswordLength = MIN_PASSWORD_LENGTH.get();
         data.applyBlindness = APPLY_BLINDNESS.get();
+        data.quietUnknownPacketErrors = QUIET_UNKNOWN_PACKET_ERRORS.get();
         data.language = LANGUAGE.get();
 
         try {
