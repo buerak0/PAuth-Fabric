@@ -12,12 +12,29 @@ import ru.zaralx.pauth.Pauth;
 import ru.zaralx.pauth.data.PlayerDatabase;
 import ru.zaralx.pauth.data.PlayerEntry;
 
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Tracks players that joined but have not yet authenticated ("limbo"). */
 public final class AuthManager {
+
+    /** The only commands a player in limbo may run. */
+    private static final Set<String> AUTH_COMMANDS = Set.of("register", "reg", "login", "l");
+
+    /**
+     * Whether a command line a locked player sent is one of the auth commands.
+     * The string is what the client typed, without the leading slash.
+     */
+    public static boolean isAuthCommand(String command) {
+        String root = command.trim();
+        if (root.startsWith("/")) root = root.substring(1);
+        int space = root.indexOf(' ');
+        if (space >= 0) root = root.substring(0, space);
+        return AUTH_COMMANDS.contains(root.toLowerCase(Locale.ROOT));
+    }
 
     public static final class Locked {
         public final Vec3 pos;
@@ -69,10 +86,17 @@ public final class AuthManager {
         recordLogin(player);
     }
 
+    public static String getPlayerIp(ServerPlayer player) {
+        if (player.connection != null && player.connection.getRemoteAddress() instanceof java.net.InetSocketAddress addr) {
+            return addr.getAddress().getHostAddress();
+        }
+        return "127.0.0.1";
+    }
+
     public static void recordLogin(ServerPlayer player) {
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
+        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
         if (entry == null) return;
-        entry.lastIp = player.getIpAddress();
+        entry.lastIp = getPlayerIp(player);
         entry.lastLoginMs = System.currentTimeMillis();
         PlayerDatabase.save();
     }

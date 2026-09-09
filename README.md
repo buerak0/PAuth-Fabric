@@ -67,7 +67,9 @@ The result: licensed players never touch a password, cracked players are fully p
 | `loginTimeoutSeconds` | `60` | How long an unauthenticated player may stay before being kicked |
 | `sessionMinutes` | `30` | Skip `/login` on reconnect from the same IP within this window (`0` disables) |
 | `maxLoginAttempts` | `3` | Wrong-password attempts before a kick |
-| `mojangApiTimeoutMs` | `5000` | Timeout for Mojang API requests |
+| `mojangApiTimeoutMs` | `5000` | Connect and request timeout for a single name-lookup request |
+| `mojangApiAttempts` | `2` | How many times the whole endpoint list is retried before a lookup is given up on |
+| `mojangApiEndpoints` | Mojang's two official lookup APIs | Name-lookup URLs, tried in order until one answers; `%s` is the username. Useful when one host is unreachable from the server — but only add mirrors you trust, since an endpoint that lies about a name lets that name be squatted |
 | `minPasswordLength` | `4` | Minimum password length |
 | `applyBlindness` | `true` | Blind players while they are not logged in |
 

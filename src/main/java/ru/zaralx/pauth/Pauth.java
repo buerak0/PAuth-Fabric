@@ -1,32 +1,26 @@
 package ru.zaralx.pauth;
 
-import com.mojang.logging.LogUtils;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.fml.IExtensionPoint;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.network.NetworkConstants;
+import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.zaralx.pauth.data.PlayerDatabase;
+import ru.zaralx.pauth.event.AuthEvents;
 
-@Mod(Pauth.MODID)
-public class Pauth {
+public class Pauth implements DedicatedServerModInitializer {
     public static final String MODID = "pauth";
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
 
-    public Pauth() {
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
-
-        // Server-side only: tell clients they don't need this mod to connect
-        ModLoadingContext.get().registerExtensionPoint(IExtensionPoint.DisplayTest.class,
-                () -> new IExtensionPoint.DisplayTest(() -> NetworkConstants.IGNORESERVERONLY, (a, b) -> true));
-
-        MinecraftForge.EVENT_BUS.addListener(this::onServerAboutToStart);
-    }
-
-    private void onServerAboutToStart(ServerAboutToStartEvent event) {
+    @Override
+    public void onInitializeServer() {
+        Config.load();
         PlayerDatabase.load();
+        AuthEvents.init();
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            PlayerDatabase.save();
+        });
+
+        LOGGER.info("PAuth initialized for Fabric 26.2");
     }
 }

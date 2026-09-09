@@ -14,13 +14,12 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.zaralx.pauth.Pauth;
 import ru.zaralx.pauth.auth.AuthManager;
 import ru.zaralx.pauth.auth.PremiumResolver;
-
-import javax.annotation.Nullable;
 
 /**
  * Premium (licensed) account detection on an offline-mode server.
@@ -29,21 +28,21 @@ import javax.annotation.Nullable;
  * 1. handleHello (client sent its username) is intercepted before vanilla logic runs.
  *    The decision "should we attempt premium auth for this name" may require a Mojang API
  *    call, so the packet is cancelled and resolved asynchronously; then handleHello is
- *    re-invoked with the decision cached in {@code pauth$premiumAttempt}.
+ *    re-invoked with the decision cached in {@code pauth$decision}.
  * 2. A redirect on {@code MinecraftServer#usesAuthentication()} makes vanilla take its own
  *    online-mode branch (encryption request -> client key -> Mojang hasJoined check) for
  *    premium candidates only. Genuine licensed clients pass it; others are kicked by
  *    vanilla with "unverified username".
- * 3. handleAcceptedLogin fires only after a successful login; if the premium path was taken
- *    and the profile is complete (came from the session server), the player is recorded as
- *    verified premium.
+ * 3. startClientVerification is the single funnel both branches end in, and it receives the
+ *    final authenticated profile. If the premium path was taken, the player is recorded as
+ *    verified premium; the profile itself is swapped here (rather than after assignment) so
+ *    that the field, the ban/dupe checks and the login-finished packet all see one profile.
  */
 @Mixin(ServerLoginPacketListenerImpl.class)
 public abstract class ServerLoginPacketListenerImplMixin {
 
     @Shadow @Final MinecraftServer server;
     @Shadow @Final public Connection connection;
-    @Shadow @Nullable GameProfile gameProfile;
 
     @Shadow public abstract void disconnect(Component reason);
 
@@ -83,20 +82,22 @@ public abstract class ServerLoginPacketListenerImplMixin {
         return this.pauth$decision == PremiumResolver.Decision.PREMIUM;
     }
 
-    @Inject(method = "handleAcceptedLogin", at = @At("HEAD"))
-    private void pauth$onAcceptedLogin(CallbackInfo ci) {
-        if (this.server.usesAuthentication()) return;
-        boolean attempted = this.pauth$decision == PremiumResolver.Decision.PREMIUM;
-        if (!attempted || this.gameProfile == null || !this.gameProfile.isComplete()) return;
+    @ModifyVariable(method = "startClientVerification", at = @At("HEAD"), argsOnly = true)
+    private GameProfile pauth$onAcceptedLogin(GameProfile profile) {
+        if (this.server.usesAuthentication()) return profile;
+        if (this.pauth$decision != PremiumResolver.Decision.PREMIUM) return profile;
+        // complete profile == it came back from the session server
+        if (profile == null || profile.id() == null || profile.name() == null) return profile;
 
         // Session server confirmed this player owns the account
-        AuthManager.onPremiumVerified(this.gameProfile.getName(), this.gameProfile.getId());
+        AuthManager.onPremiumVerified(profile.name(), profile.id());
 
-        if (ru.zaralx.pauth.Config.OFFLINE_UUID_FOR_PREMIUM.get()) {
-            GameProfile offline = new GameProfile(
-                    UUIDUtil.createOfflinePlayerUUID(this.gameProfile.getName()), this.gameProfile.getName());
-            offline.getProperties().putAll(this.gameProfile.getProperties());
-            this.gameProfile = offline;
-        }
+        if (!ru.zaralx.pauth.Config.OFFLINE_UUID_FOR_PREMIUM.get()) return profile;
+
+        GameProfile offline = new GameProfile(
+                UUIDUtil.createOfflinePlayerUUID(profile.name()),
+                profile.name());
+        offline.properties().putAll(profile.properties());
+        return offline;
     }
 }

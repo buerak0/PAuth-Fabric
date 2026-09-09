@@ -1,148 +1,106 @@
 package ru.zaralx.pauth.event;
 
-import ru.zaralx.pauth.i18n.Messages;
-import com.mojang.brigadier.context.ParsedCommandNode;
-import net.minecraft.commands.CommandSourceStack;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.event.CommandEvent;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.ServerChatEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.item.ItemTossEvent;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.level.BlockEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import ru.zaralx.pauth.Pauth;
+import net.minecraft.world.InteractionResult;
 import ru.zaralx.pauth.auth.AuthManager;
 import ru.zaralx.pauth.command.AuthCommands;
 import ru.zaralx.pauth.data.PlayerDatabase;
 import ru.zaralx.pauth.data.PlayerEntry;
+import ru.zaralx.pauth.i18n.Messages;
 
-import java.util.List;
-import java.util.Set;
-
-@Mod.EventBusSubscriber(modid = Pauth.MODID)
 public class AuthEvents {
 
-    private static final Set<String> ALLOWED_COMMANDS = Set.of("register", "reg", "login", "l");
+    public static void init() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            AuthCommands.register(dispatcher);
+        });
 
-    @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        AuthCommands.register(event.getDispatcher());
-    }
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            if (server.usesAuthentication()) return; // online-mode: nothing to do
 
-    @SubscribeEvent
-    public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        MinecraftServer server = player.getServer();
-        if (server == null || server.usesAuthentication()) return; // online-mode: nothing to do
+            String ip = AuthManager.getPlayerIp(player);
+            PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+            if (entry != null && entry.premium) {
+                // Could only get here through the encryption + session server check
+                AuthManager.recordLogin(player);
+                player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PREMIUM_OK)));
+                return;
+            }
+            boolean registered = entry != null && entry.passwordHash != null;
+            if (registered && AuthManager.sessionValid(entry, ip)) {
+                AuthManager.recordLogin(player);
+                player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.SESSION_RESTORED)));
+                return;
+            }
+            AuthManager.lock(player, registered);
+        });
 
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
-        if (entry != null && entry.premium) {
-            // Could only get here through the encryption + session server check
-            AuthManager.recordLogin(player);
-            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.PREMIUM_OK)));
-            return;
-        }
-        boolean registered = entry != null && entry.passwordHash != null;
-        if (registered && AuthManager.sessionValid(entry, player.getIpAddress())) {
-            AuthManager.recordLogin(player);
-            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.SESSION_RESTORED)));
-            return;
-        }
-        AuthManager.lock(player, registered);
-    }
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            if (!AuthManager.isLocked(player)) {
+                AuthManager.recordLogin(player); // refresh session ip/time
+            }
+            AuthManager.onDisconnect(player);
+        });
 
-    @SubscribeEvent
-    public static void onLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        if (!AuthManager.isLocked(player)) {
-            AuthManager.recordLogin(player); // refresh session ip/time
-        }
-        AuthManager.onDisconnect(player);
-    }
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                AuthManager.tick(player);
+            }
+        });
 
-    @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) return;
-        AuthManager.tick(player);
-    }
+        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
+            if (AuthManager.isLocked(sender)) {
+                sender.sendSystemMessage(Component.literal(Messages.t(Messages.Key.MUST_LOGIN_FIRST)));
+                return false;
+            }
+            return true;
+        });
 
-    @SubscribeEvent
-    public static void onChat(ServerChatEvent event) {
-        if (AuthManager.isLocked(event.getPlayer())) {
-            event.setCanceled(true);
-            event.getPlayer().sendSystemMessage(Component.literal(Messages.t(Messages.Key.MUST_LOGIN_FIRST)));
-        }
-    }
+        // Commands are gated in ServerGamePacketListenerImplMixin: ALLOW_COMMAND_MESSAGE only
+        // fires for commands that broadcast a chat message, so it cannot block /tp and friends.
 
-    @SubscribeEvent
-    public static void onCommand(CommandEvent event) {
-        CommandSourceStack source = event.getParseResults().getContext().getSource();
-        if (!(source.getEntity() instanceof ServerPlayer player) || !AuthManager.isLocked(player)) return;
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (AuthManager.isLocked(player)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
 
-        List<ParsedCommandNode<CommandSourceStack>> nodes = event.getParseResults().getContext().getNodes();
-        String root = nodes.isEmpty() ? "" : nodes.get(0).getNode().getName();
-        if (!ALLOWED_COMMANDS.contains(root)) {
-            event.setCanceled(true);
-            player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ONLY_AUTH_COMMANDS)));
-        }
-    }
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (AuthManager.isLocked(player)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
 
-    @SubscribeEvent
-    public static void onInteract(PlayerInteractEvent event) {
-        if (event.isCancelable() && AuthManager.isLocked(event.getEntity())) {
-            event.setCanceled(true);
-        }
-    }
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (AuthManager.isLocked(player)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
 
-    @SubscribeEvent
-    public static void onAttackEntity(AttackEntityEvent event) {
-        if (AuthManager.isLocked(event.getEntity())) event.setCanceled(true);
-    }
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (AuthManager.isLocked(player)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
 
-    @SubscribeEvent
-    public static void onLivingAttack(LivingAttackEvent event) {
-        // No damage to or from players in limbo
-        if (event.getEntity() instanceof ServerPlayer victim && AuthManager.isLocked(victim)) {
-            event.setCanceled(true);
-        } else if (event.getSource().getEntity() instanceof ServerPlayer attacker
-                && AuthManager.isLocked(attacker)) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (event.getPlayer() != null && AuthManager.isLocked(event.getPlayer())) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player && AuthManager.isLocked(player)) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onItemToss(ItemTossEvent event) {
-        if (AuthManager.isLocked(event.getPlayer())) {
-            event.setCanceled(true);
-            event.getPlayer().getInventory().add(event.getEntity().getItem());
-        }
-    }
-
-    @SubscribeEvent
-    public static void onItemPickup(EntityItemPickupEvent event) {
-        if (AuthManager.isLocked(event.getEntity())) event.setCanceled(true);
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+            return !AuthManager.isLocked(player);
+        });
     }
 }

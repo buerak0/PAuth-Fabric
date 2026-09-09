@@ -3,7 +3,7 @@ package ru.zaralx.pauth.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.fabricmc.loader.api.FabricLoader;
 import ru.zaralx.pauth.Pauth;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ public final class PlayerDatabase {
     private PlayerDatabase() {}
 
     private static Path file() {
-        return FMLPaths.CONFIGDIR.get().resolve("pauth").resolve("users.json");
+        return FabricLoader.getInstance().getConfigDir().resolve("pauth").resolve("users.json");
     }
 
     public static synchronized void load() {
