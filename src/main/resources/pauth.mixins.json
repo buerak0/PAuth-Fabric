@@ -8,7 +8,8 @@
     "ServerPlayerEntityMixin",
     "ServerGamePacketListenerImplMixin",
     "PlayerAttackMixin",
-    "ItemEntityMixin"
+    "ItemEntityMixin",
+    "PacketEncoderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
