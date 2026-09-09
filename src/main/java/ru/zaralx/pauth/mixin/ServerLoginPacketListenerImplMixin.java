@@ -87,17 +87,17 @@ public abstract class ServerLoginPacketListenerImplMixin {
         if (this.server.usesAuthentication()) return profile;
         if (this.pauth$decision != PremiumResolver.Decision.PREMIUM) return profile;
         // complete profile == it came back from the session server
-        if (profile == null || profile.id() == null || profile.name() == null) return profile;
+        if (profile == null || profile.getId() == null || profile.getName() == null) return profile;
 
         // Session server confirmed this player owns the account
-        AuthManager.onPremiumVerified(profile.name(), profile.id());
+        AuthManager.onPremiumVerified(profile.getName(), profile.getId());
 
         if (!ru.zaralx.pauth.Config.OFFLINE_UUID_FOR_PREMIUM.get()) return profile;
 
         GameProfile offline = new GameProfile(
-                UUIDUtil.createOfflinePlayerUUID(profile.name()),
-                profile.name());
-        offline.properties().putAll(profile.properties());
+                UUIDUtil.createOfflinePlayerUUID(profile.getName()),
+                profile.getName());
+        offline.getProperties().putAll(profile.getProperties());
         return offline;
     }
 }

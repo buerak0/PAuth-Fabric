@@ -6,4 +6,4 @@ plugins {
 
 // The version the working tree is checked out to. Switch with:
 //   ./gradlew "Set active project to 1.21.1"
-stonecutter.active '26.2'
+stonecutter.active '1.21.8'

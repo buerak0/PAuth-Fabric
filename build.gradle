@@ -1,7 +1,10 @@
 // Central build script: Stonecutter applies it to every version under versions/.
 // Version-specific values come from versions/<version>/gradle.properties.
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.17.4'
+    // Last Loom line that still remaps: these Minecraft versions ship obfuscated.
+    // Note the plugin id: 1.13 publishes the marker as 'fabric-loom', not
+    // 'net.fabricmc.fabric-loom' the way 1.17 on main does.
+    id 'fabric-loom' version '1.13.6'
     id 'dev.kikugie.stonecutter'
 }
 
@@ -23,14 +26,12 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    // No explicit mappings: this Loom already resolves the official (Mojang) namespace the
-    // sources are written in, and rejects officialMojangMappings() outright.
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    // The sources are written in Mojang names and these versions are obfuscated, so the
+    // official mappings have to be asked for explicitly.
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    // Only the Fabric API modules PAuth actually uses. Pulling in the whole fabric-api
-    // drags along modules whose access wideners are written in the intermediary namespace
-    // (fabric-biome-api-v1 among them), which Loom refuses to process against Mojang
-    // mappings on the older versions.
+    // Only the Fabric API modules PAuth actually uses, rather than the whole umbrella.
     [
             'fabric-api-base',
             'fabric-command-api-v2',
@@ -39,7 +40,7 @@ dependencies {
             'fabric-message-api-v1',
             'fabric-networking-api-v1',
     ].each { module ->
-        implementation fabricApi.module(module, project.fabric_version)
+        modImplementation fabricApi.module(module, project.fabric_version)
     }
 }
 
@@ -80,8 +81,8 @@ jar {
 }
 
 // Collect every version's jar in one place so a full build leaves a usable set.
-// Minecraft ships deobfuscated here, so Loom registers no remapJar and `jar` is the
-// artifact that gets shipped.
-tasks.named('jar') {
+// remapJar is the shipped artifact here; matching/configureEach stays lazy because Loom
+// registers that task after this script runs.
+tasks.matching { it.name == 'remapJar' }.configureEach {
     destinationDirectory = rootProject.layout.buildDirectory.dir('libs')
 }

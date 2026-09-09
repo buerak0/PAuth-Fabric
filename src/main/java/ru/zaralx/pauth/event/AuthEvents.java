@@ -30,7 +30,7 @@ public class AuthEvents {
             if (server.usesAuthentication()) return; // online-mode: nothing to do
 
             String ip = AuthManager.getPlayerIp(player);
-            PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+            PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
             if (entry != null && entry.premium) {
                 // Could only get here through the encryption + session server check
                 AuthManager.recordLogin(player);
@@ -78,12 +78,23 @@ public class AuthEvents {
             return InteractionResult.PASS;
         });
 
+        // The only place in this tree where the Fabric API signature itself changed:
+        // before 1.21.4 UseItemCallback returns InteractionResultHolder<ItemStack>.
+        //? if <1.21.4 {
+        /*UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (AuthManager.isLocked(player)) {
+                return net.minecraft.world.InteractionResultHolder.fail(player.getItemInHand(hand));
+            }
+            return net.minecraft.world.InteractionResultHolder.pass(player.getItemInHand(hand));
+        });
+        *///?} else {
         UseItemCallback.EVENT.register((player, world, hand) -> {
             if (AuthManager.isLocked(player)) {
                 return InteractionResult.FAIL;
             }
             return InteractionResult.PASS;
         });
+        //?}
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (AuthManager.isLocked(player)) {

@@ -79,13 +79,18 @@ Accounts are stored as JSON in `config/pauth/users.json`.
 
 ## Supported versions
 
+This is the **`legacy`** branch, covering the obfuscated Minecraft versions.
+
 | Minecraft | Loader | Branch |
 |---|---|---|
+| 1.21.8 | Fabric | `legacy` |
+| 1.21.4 | Fabric | `legacy` |
+| 1.21.1 | Fabric | `legacy` |
 | 26.2 | Fabric | `main` |
 
 Each build is version-specific — download the file that matches your server.
 
-The Forge/NeoForge builds for 1.21.1 and older live in the original repository,
+The Forge/NeoForge builds live in the original repository,
 [buerak0/PAuth](https://github.com/buerak0/PAuth).
 
 ---
@@ -106,12 +111,25 @@ The jar lands in `build/libs/`. To switch the tree to another version:
 ./gradlew "Set active project to <version>"
 ```
 
-**On older Minecraft.** This tree only covers the non-obfuscated era (26.x and up).
-Loom 1.17 is built for it: it performs no remapping, rejects `officialMojangMappings()`,
-and requires every mod's access widener to be in the official namespace — which the
-Fabric API artifacts for 1.21.x and older are not. Those versions need an older Loom,
-and a Gradle build resolves its plugin classpath once, so they cannot share this tree.
-They belong on their own branch.
+`./gradlew build` builds the active version; naming the projects builds several at once:
+
+```bash
+./gradlew :1.21.1:build :1.21.4:build :1.21.8:build
+```
+
+**Why this branch exists.** 26.x ships deobfuscated and needs Loom 1.17, which performs
+no remapping, has no `modImplementation`, rejects `officialMojangMappings()`, and requires
+every mod's access widener to be in the official namespace — the Fabric API artifacts for
+1.21.x are written in intermediary, so Loom 1.17 cannot consume them at all. These versions
+need a Loom that still remaps (1.13 here). A Gradle build resolves its plugin classpath
+once, so the two eras cannot share one tree; 26.x lives on `main`.
+
+**Version-specific code.** Only one API difference needs a Stonecutter conditional across
+this branch: before 1.21.4 `UseItemCallback` returns `InteractionResultHolder<ItemStack>`
+rather than `InteractionResult`. Two more differences are handled by writing the portable
+form instead: `GameProfile` uses the pre-record getters, and the `/pauth` permission check
+goes through `CommandSourceStack.hasPermission(int)`, since `Commands.hasPermission(int)`
+only appears in 1.21.8.
 
 ---
 

@@ -49,7 +49,9 @@ public final class AuthCommands {
                                 .executes(AuthCommands::executeChangePassword))));
 
         dispatcher.register(Commands.literal("pauth")
-        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+        // Commands.hasPermission(int) only exists from 1.21.8; the source-level check
+        // works on every version in this tree.
+        .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
         .then(Commands.literal("unregister")
                 .then(Commands.argument("name", StringArgumentType.word())
                         .executes(AuthCommands::executeUnregister)))
@@ -67,7 +69,7 @@ public final class AuthCommands {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_LOGGED_IN)));
             return 0;
         }
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry != null && entry.passwordHash != null) {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_REGISTERED)));
             return 0;
@@ -87,7 +89,7 @@ public final class AuthCommands {
             String hash = PasswordHasher.hash(password);
             server.execute(() -> {
                 if (player.hasDisconnected() || !AuthManager.isLocked(player)) return;
-                PlayerEntry created = PlayerDatabase.getOrCreate(player.getGameProfile().name());
+                PlayerEntry created = PlayerDatabase.getOrCreate(player.getGameProfile().getName());
                 created.passwordHash = hash;
                 created.registeredAtMs = System.currentTimeMillis();
                 AuthManager.authenticate(player);
@@ -105,7 +107,7 @@ public final class AuthCommands {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.ALREADY_LOGGED_IN)));
             return 0;
         }
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry == null || entry.passwordHash == null) {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.NOT_REGISTERED)));
             return 0;
@@ -146,7 +148,7 @@ public final class AuthCommands {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.MUST_LOGIN_FIRST)));
             return 0;
         }
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry == null || entry.passwordHash == null) {
             player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.NO_PASSWORD_PREMIUM)));
             return 0;
@@ -167,7 +169,7 @@ public final class AuthCommands {
                     player.sendSystemMessage(Component.literal(Messages.t(Messages.Key.WRONG_OLD_PASSWORD)));
                     return;
                 }
-                PlayerEntry current = PlayerDatabase.get(player.getGameProfile().name());
+                PlayerEntry current = PlayerDatabase.get(player.getGameProfile().getName());
                 if (current != null) {
                     current.passwordHash = newHash;
                     PlayerDatabase.save();

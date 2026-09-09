@@ -94,7 +94,7 @@ public final class AuthManager {
     }
 
     public static void recordLogin(ServerPlayer player) {
-        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().name());
+        PlayerEntry entry = PlayerDatabase.get(player.getGameProfile().getName());
         if (entry == null) return;
         entry.lastIp = getPlayerIp(player);
         entry.lastLoginMs = System.currentTimeMillis();

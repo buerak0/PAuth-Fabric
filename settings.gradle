@@ -6,7 +6,12 @@ pluginManagement {
         maven {
             name = 'Fabric'
             url = 'https://maven.fabricmc.net/'
-            content { includeGroupByRegex 'net\\.fabricmc.*' }
+            content {
+                includeGroupByRegex 'net\\.fabricmc.*'
+                // Loom 1.13 publishes its plugin marker under the bare 'fabric-loom' group,
+                // which the net.fabricmc filter above would hide.
+                includeGroup 'fabric-loom'
+            }
         }
         maven {
             name = 'Stonecutter'
@@ -27,14 +32,12 @@ plugins {
 
 stonecutter {
     create(rootProject) {
-        // Only the non-obfuscated era belongs in this tree. Loom 1.17 is built for it: it has
-        // no modImplementation, rejects officialMojangMappings(), and demands the official
-        // namespace from every mod's access widener - so a 1.21.x Fabric API artifact, whose
-        // wideners are written in intermediary, cannot be consumed here at all.
-        // Older Minecraft needs an older Loom, and one Gradle build resolves its plugin
-        // classpath once, so those versions live on their own branch.
-        versions '26.2'
-        vcsVersion = '26.2'
+        // The obfuscated era. These versions need a Loom that still remaps (1.13 here);
+        // the Loom on main is built for non-obfuscated Minecraft and cannot consume a
+        // 1.21.x Fabric API artifact at all. A Gradle build resolves its plugin classpath
+        // once, so 26.x cannot share this tree - it stays on main.
+        versions '1.21.1', '1.21.4', '1.21.8'
+        vcsVersion = '1.21.8'
     }
 }
 
