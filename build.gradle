@@ -1,51 +1,87 @@
+// Central build script: Stonecutter applies it to every version under versions/.
+// Version-specific values come from versions/<version>/gradle.properties.
 plugins {
     id 'net.fabricmc.fabric-loom' version '1.17.4'
-    id 'maven-publish'
+    id 'dev.kikugie.stonecutter'
 }
 
-version = project.mod_version
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.mod_group_id
 
 base {
-    archivesName = project.mod_id
+    archivesName = "${project.mod_id}-fabric-${project.minecraft_version}"
 }
 
 repositories {
-    mavenCentral()
     maven {
         name = 'Fabric'
         url = 'https://maven.fabricmc.net/'
+        content { includeGroupByRegex 'net\\.fabricmc.*' }
     }
+    mavenCentral()
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    // No explicit mappings: this Loom already resolves the official (Mojang) namespace the
+    // sources are written in, and rejects officialMojangMappings() outright.
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Only the Fabric API modules PAuth actually uses. Pulling in the whole fabric-api
+    // drags along modules whose access wideners are written in the intermediary namespace
+    // (fabric-biome-api-v1 among them), which Loom refuses to process against Mojang
+    // mappings on the older versions.
+    [
+            'fabric-api-base',
+            'fabric-command-api-v2',
+            'fabric-lifecycle-events-v1',
+            'fabric-events-interaction-v0',
+            'fabric-message-api-v1',
+            'fabric-networking-api-v1',
+    ].each { module ->
+        implementation fabricApi.module(module, project.fabric_version)
+    }
 }
+
+def javaVersion = Integer.parseInt(project.java_version)
 
 processResources {
     inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+    inputs.property "java_version", project.java_version
 
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version
+    filesMatching(["fabric.mod.json", "pauth.mixins.json"]) {
+        expand(
+                "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version,
+                "java_version": project.java_version
+        )
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = javaVersion
     it.options.encoding = "UTF-8"
 }
 
 java {
     withSourcesJar()
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(javaVersion)
     }
 }
 
 jar {
-    from("LICENSE") {
+    from(rootProject.file("LICENSE")) {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
+}
+
+// Collect every version's jar in one place so a full build leaves a usable set.
+// Minecraft ships deobfuscated here, so Loom registers no remapJar and `jar` is the
+// artifact that gets shipped.
+tasks.named('jar') {
+    destinationDirectory = rootProject.layout.buildDirectory.dir('libs')
 }

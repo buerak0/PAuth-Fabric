@@ -2,7 +2,7 @@
 
 **Automatic premium detection + password login for offline-mode (`online-mode=false`) Minecraft servers.** Server-side only — vanilla and modded clients connect without installing anything.
 
-PAuth brings the "FastLogin + AuthMe" experience to Forge/NeoForge: players who own a genuine Minecraft account are logged in **instantly, with no password**, while cracked players register and log in with `/register` and `/login`. No client mod, no proxy required.
+PAuth brings the "FastLogin + AuthMe" experience to Fabric: players who own a genuine Minecraft account are logged in **instantly, with no password**, while cracked players register and log in with `/register` and `/login`. No client mod, no proxy required.
 
 ---
 
@@ -38,7 +38,7 @@ The result: licensed players never touch a password, cracked players are fully p
 - 🔁 **Optional IP sessions** — skip `/login` on quick reconnects from the same IP (off by default; see security notes).
 - 🆔 **UUID mode** — keep real Mojang UUIDs for premium players, or force offline-style UUIDs for stable player data across auth modes.
 - 🌍 **Bilingual** — all player-facing messages available in **English and Russian**, selectable with the `language` config option.
-- 🧩 **Server-side only** — clients need nothing; the mod advertises itself as not required to connect.
+- 🧩 **Server-side only** — clients need nothing and join with a vanilla client; the mod declares itself server-environment only.
 
 ---
 
@@ -56,7 +56,7 @@ The result: licensed players never touch a password, cracked players are fully p
 
 ## Configuration
 
-`config/pauth-common.toml`:
+`config/pauth.json`:
 
 | Option | Default | Description |
 |---|---|---|
@@ -79,15 +79,39 @@ Accounts are stored as JSON in `config/pauth/users.json`.
 
 ## Supported versions
 
-| Minecraft | Loader |
-|---|---|
-| 1.21.1 | NeoForge |
-| 1.20.1 | Forge |
-| 1.19.4 | Forge |
-| 1.19.2 | Forge |
-| 1.18.2 | Forge |
+| Minecraft | Loader | Branch |
+|---|---|---|
+| 26.2 | Fabric | `main` |
 
 Each build is version-specific — download the file that matches your server.
+
+The Forge/NeoForge builds for 1.21.1 and older live in the original repository,
+[buerak0/PAuth](https://github.com/buerak0/PAuth).
+
+---
+
+## Building
+
+The version tree is managed with [Stonecutter](https://stonecutter.kikugie.dev/).
+Shared settings are in `gradle.properties`; per-version values live in
+`versions/<version>/gradle.properties`.
+
+```bash
+./gradlew build
+```
+
+The jar lands in `build/libs/`. To switch the tree to another version:
+
+```bash
+./gradlew "Set active project to <version>"
+```
+
+**On older Minecraft.** This tree only covers the non-obfuscated era (26.x and up).
+Loom 1.17 is built for it: it performs no remapping, rejects `officialMojangMappings()`,
+and requires every mod's access widener to be in the official namespace — which the
+Fabric API artifacts for 1.21.x and older are not. Those versions need an older Loom,
+and a Gradle build resolves its plugin classpath once, so they cannot share this tree.
+They belong on their own branch.
 
 ---
 

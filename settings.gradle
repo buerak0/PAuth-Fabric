@@ -1,11 +1,40 @@
 pluginManagement {
     repositories {
+        // Each third-party repo is pinned to its own group. Without this Gradle asks every
+        // repository for every transitive artifact (gson, kotlin-metadata, ...), which is
+        // slow at best and fails the build when one of them is unreachable.
         maven {
             name = 'Fabric'
             url = 'https://maven.fabricmc.net/'
+            content { includeGroupByRegex 'net\\.fabricmc.*' }
         }
-        mavenCentral()
+        maven {
+            name = 'Stonecutter'
+            url = 'https://maven.kikugie.dev/releases'
+            content { includeGroupByRegex 'dev\\.kikugie.*' }
+        }
         gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.9.8'
+    // Lets Gradle fetch the JDK a version needs (17 for 1.20.1, 21 for 1.21.x)
+    // instead of failing on a machine that only has one installed.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+stonecutter {
+    create(rootProject) {
+        // Only the non-obfuscated era belongs in this tree. Loom 1.17 is built for it: it has
+        // no modImplementation, rejects officialMojangMappings(), and demands the official
+        // namespace from every mod's access widener - so a 1.21.x Fabric API artifact, whose
+        // wideners are written in intermediary, cannot be consumed here at all.
+        // Older Minecraft needs an older Loom, and one Gradle build resolves its plugin
+        // classpath once, so those versions live on their own branch.
+        versions '26.2'
+        vcsVersion = '26.2'
     }
 }
 

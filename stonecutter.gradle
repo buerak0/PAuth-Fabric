@@ -1,0 +1,9 @@
+// Stonecutter controller. Everything here runs once for the whole version tree;
+// the per-version build lives in build.gradle.
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+
+// The version the working tree is checked out to. Switch with:
+//   ./gradlew "Set active project to 1.21.1"
+stonecutter.active '26.2'
